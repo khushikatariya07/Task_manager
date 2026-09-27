@@ -46,39 +46,52 @@ async function getTasks(
     userId,
     status,
     priority,
+    search,
     limit,
     offset
 ) {
     let query = `
         SELECT
-            id,
-            title,
-            priority,
-            status,
-            duedate,
-            createdby,
-            assignedto
+            Id,
+            Title,
+            Description,
+            Priority,
+            Status,
+            DueDate,
+            CreatedBy,
+            AssignedTo,
+            CreatedAt,
+            UpdatedAt
         FROM Tasks
-        WHERE createdby = $1
+        WHERE CreatedBy = $1
     `;
 
     const values = [userId];
     let parameterIndex = 2;
 
+    // Filter by status
     if (status) {
-        query += ` AND status = $${parameterIndex}`;
+        query += ` AND Status = $${parameterIndex}`;
         values.push(status);
         parameterIndex++;
     }
 
+    // Filter by priority
     if (priority) {
-        query += ` AND priority = $${parameterIndex}`;
+        query += ` AND Priority = $${parameterIndex}`;
         values.push(priority);
         parameterIndex++;
     }
 
+    // Search by title
+    if (search) {
+        query += ` AND Title ILIKE $${parameterIndex}`;
+        values.push(`%${search}%`);
+        parameterIndex++;
+    }
+
     query += `
-        ORDER BY createdat DESC
+        ORDER BY CreatedAt DESC
         LIMIT $${parameterIndex}
         OFFSET $${parameterIndex + 1}
     `;
@@ -89,6 +102,48 @@ async function getTasks(
     const result = await pool.query(query, values);
 
     return result.rows;
+}
+
+
+async function getTaskCount(
+    userId,
+    status,
+    priority,
+    search
+) {
+    let query = `
+        SELECT COUNT(*) AS total
+        FROM Tasks
+        WHERE CreatedBy = $1
+    `;
+
+    const values = [userId];
+    let parameterIndex = 2;
+
+    // Filter by status
+    if (status) {
+        query += ` AND Status = $${parameterIndex}`;
+        values.push(status);
+        parameterIndex++;
+    }
+
+    // Filter by priority
+    if (priority) {
+        query += ` AND Priority = $${parameterIndex}`;
+        values.push(priority);
+        parameterIndex++;
+    }
+
+    // Search by title
+    if (search) {
+        query += ` AND Title ILIKE $${parameterIndex}`;
+        values.push(`%${search}%`);
+        parameterIndex++;
+    }
+
+    const result = await pool.query(query, values);
+
+    return Number(result.rows[0].total);
 }
 
 async function getTaskById(userid, id){
@@ -301,36 +356,57 @@ async function getDashboard(userId) {
     return result.rows[0];
 }
 
-async function getTaskCount(
-    userId,
-    status,
-    priority
+async function createTeamTask(
+    title,
+    description,
+    priority,
+    dueDate,
+    createdBy,
+    assignedTo,
+    teamId
 ) {
-    let query = `
-        SELECT COUNT(*) AS total
-        FROM Tasks
-        WHERE CreatedBy = $1
+    const query = `
+        INSERT INTO Tasks
+        (
+            Title,
+            Description,
+            Priority,
+            DueDate,
+            CreatedBy,
+            AssignedTo,
+            TeamId
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING
+            Id,
+            Title,
+            Description,
+            Priority,
+            Status,
+            DueDate,
+            CreatedBy,
+            AssignedTo,
+            TeamId,
+            CreatedAt,
+            UpdatedAt;
     `;
 
-    const values = [userId];
-    let parameterIndex = 2;
-
-    if (status) {
-        query += ` AND Status = $${parameterIndex}`;
-        values.push(status);
-        parameterIndex++;
-    }
-
-    if (priority) {
-        query += ` AND Priority = $${parameterIndex}`;
-        values.push(priority);
-        parameterIndex++;
-    }
+    const values = [
+        title,
+        description,
+        priority,
+        dueDate,
+        createdBy,
+        assignedTo,
+        teamId
+    ];
 
     const result = await pool.query(query, values);
 
-    return Number(result.rows[0].total);
+    return result.rows[0];
 }
+
+
 
 module.exports = {
     createTask,
@@ -340,5 +416,6 @@ module.exports = {
     deleteTask,
     updateTaskStatusWithHistory,
     getDashboard,
-    getTaskCount
+    getTaskCount,
+    createTeamTask
 };

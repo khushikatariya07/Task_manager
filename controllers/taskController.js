@@ -41,6 +41,7 @@ async function getTasks(req, res) {
         const {
             status,
             priority,
+            search,
             page = 1,
             limit = 10
         } = req.query;
@@ -49,6 +50,7 @@ async function getTasks(req, res) {
             userId,
             status,
             priority,
+            search,
             page,
             limit
         );
@@ -63,6 +65,7 @@ async function getTasks(req, res) {
         console.error(error);
 
         return res.status(400).json({
+            
             message: error.message
         });
     }
@@ -220,6 +223,44 @@ async function getDashboard(req, res) {
     }
 }
 
+async function createTeamTask(req, res) {
+    try {
+        const { teamId } = req.params;
+
+        const {
+            title,
+            description,
+            priority,
+            dueDate,
+            assignedTo
+        } = req.body;
+
+        const currentUserId = req.user.sub;
+
+        const task = await taskService.createTeamTask(
+            teamId,
+            title,
+            description,
+            priority,
+            dueDate,
+            assignedTo,
+            currentUserId
+        );
+
+        return res.status(201).json({
+            message: "Team task created successfully",
+            task
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(400).json({
+            message: error.message
+        });
+    }
+}
+
 module.exports = {
     createTask,
     getTasks,
@@ -227,5 +268,6 @@ module.exports = {
     updateTask,
     deleteTask,
     updateTaskStatus,
-    getDashboard
+    getDashboard,
+    createTeamTask
 };
